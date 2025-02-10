@@ -2,18 +2,18 @@ from django.db import models
 from django.utils import timezone
 from datetime import timedelta
 from django.core.exceptions import ValidationError
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from filetime.utils.timeparser import ScheduleParser
 
-# Utility functions to compute default start and end dates for the next week
 def next_week_start():
     today = timezone.now().date()
-    # Calculate the next Monday based on the current weekday
     next_monday = today + timedelta(days=(7 - today.weekday()))
     return next_monday
 
 def next_week_end():
     next_monday = next_week_start()
-    # Calculate next Friday (Monday + 4 days)
-    next_friday = next_monday + timedelta(days=4)
+    next_friday = next_monday + timedelta(days=6)
     return next_friday
 
 
@@ -24,7 +24,7 @@ class Lesson(models.Model):
     group = models.CharField(max_length=50, verbose_name="Группа")
 
     def __str__(self):
-        return self.name  # Return lesson name for readability
+        return self.name  
 
     class Meta:
         verbose_name = "Lesson"
@@ -33,7 +33,6 @@ class Lesson(models.Model):
 
 class Schedule(models.Model):
     day = models.DateField(verbose_name="День")
-    # Link to Lesson via the through model ScheduleLesson
     lessons = models.ManyToManyField(
         Lesson,
         through='ScheduleLesson',
@@ -65,25 +64,22 @@ class ScheduleLesson(models.Model):
         ordering = ['order']
         verbose_name = "Scheduled Lesson"
         verbose_name_plural = "Scheduled Lessons"
-        unique_together = (('schedule', 'order'),)  # Ensure each order is unique within a schedule
+        unique_together = (('schedule', 'order'),)  
 
 
 class FileTime(models.Model):
     start_date = models.DateField(default=next_week_start, verbose_name="Дата начала")
     end_date = models.DateField(default=next_week_end, verbose_name="Дата завершения")
     file = models.FileField(upload_to='uploads/', verbose_name="Файл")
-    # Replace foreign key with a many-to-many field to associate multiple schedules
     schedules = models.ManyToManyField(Schedule, verbose_name="Расписание")
 
     def __str__(self):
         return f"FileTime: {self.start_date} - {self.end_date}"
 
     def clean(self):
-        # Validate that the start_date is before the end_date
         if self.start_date >= self.end_date:
             raise ValidationError("Start date must be before end date.")
 
-        # Validate that there is no overlapping FileTime interval
         overlapping = FileTime.objects.filter(
             start_date__lt=self.end_date,
             end_date__gt=self.start_date
@@ -103,9 +99,17 @@ class FileTime(models.Model):
         #            )
 
     def save(self, *args, **kwargs):
-        self.full_clean()  # Run validations before saving
+        self.full_clean() 
         super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = "FileTime"
         verbose_name_plural = "FileTimes"
+
+
+@receiver(post_save, sender=FileTime)
+def post_process_document(sender, instance, created, **kwargs):
+    if created and instance.file:
+        parser = ScheduleParser(instance.file.path)
+        parser.parse_schedule()
+        print(parser.days)

@@ -26,7 +26,7 @@ class LessonAdmin(admin.ModelAdmin):
 
 # Admin for the FileTime model, updated to handle multiple schedules
 class FileTimeAdmin(admin.ModelAdmin):
-    list_display = ('start_date', 'end_date', 'file', 'get_schedules')
+    list_display = ('start_date', 'end_date', 'file')
     list_filter = ('start_date', 'end_date')
     search_fields = ('start_date', 'end_date')
     fields = ('start_date', 'end_date', 'file', 'schedules')
