@@ -4,9 +4,9 @@ from openpyxl.cell import MergedCell
 import re
 from datetime import datetime
 
+
 class ScheduleParser:
     def __init__(self, excel_file):
-        self.teachers = dict()
         self.days = []
         self.wb = load_workbook(filename=excel_file)
         self.ws = self.wb.active
@@ -19,7 +19,9 @@ class ScheduleParser:
             for merged_range in self.ws.merged_cells.ranges:
                 if cell.coordinate in merged_range:
                     if merged_range.min_col == cell.column:
-                        top_left_cell = self.ws.cell(row=merged_range.min_row, column=merged_range.min_col)
+                        top_left_cell = self.ws.cell(
+                            row=merged_range.min_row, column=merged_range.min_col
+                        )
                         return top_left_cell.value
         else:
             return cell.value
@@ -37,13 +39,13 @@ class ScheduleParser:
     def parse_subject(self, cell: Cell):
         val = self.get_merged_cell_value(cell)
         if val:
-            pattern = r'([А-ЯЁа-яё]+ [А-ЯЁ]\.[А-ЯЁ]\.)'
+            pattern = r"([А-ЯЁа-яё]+ [А-ЯЁ]\.[А-ЯЁ]\.)"
             match = re.search(pattern, val, re.MULTILINE)
             if match:
                 parts = re.split(pattern, val)
                 subject = parts[0].strip()
-                teacher = re.sub(r'\s+', ' ', match.group(1))
-                return (subject, teacher)
+
+                return subject
         return False
 
     def parse_schedule(self):
@@ -57,7 +59,14 @@ class ScheduleParser:
             max_col=max_col,
         )
 
+        groups_by_col = None
+
         for row in iter_rows:
+            
+            if not groups_by_col:
+                # TODO: groups_by_col = Match groups in row - 1
+                pass
+
             date_col = row[0].value
             lesson_num = row[1].value
 
@@ -74,13 +83,13 @@ class ScheduleParser:
                 for col in row[2:]:
                     result = self.parse_subject(col)
                     if result:
-                        subj, teacher = result
-                        pair = {"subj": subj, "dt": dt, "lesson_num": lesson_num}
+                        subj = result
+                        # TODO: Find group name from table header
+                        pair = {
+                            "subj": subj,
+                            "group": "",
+                            "dt": dt,
+                            "lesson_num": lesson_num,
+                        }
                         day.append(pair)
-                        if teacher in self.teachers:
-                            self.teachers[teacher].append(pair)
-                        else:
-                            self.teachers[teacher] = [pair]
             self.days.append(day)
-
-
