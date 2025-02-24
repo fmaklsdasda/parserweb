@@ -24,7 +24,6 @@ class Lesson(models.Model):
     name = models.CharField(max_length=255, verbose_name="Предмет")
     room = models.CharField(max_length=50, verbose_name="Кабинет")
     teacher = models.CharField(max_length=100, verbose_name="ФИО преподавателя")
-    group = models.CharField(max_length=50, verbose_name="Группа")
 
     def __str__(self) -> str:
         return self.name
@@ -54,6 +53,7 @@ class ScheduleLesson(models.Model):
         Schedule, on_delete=models.CASCADE, verbose_name="Schedule"
     )
     lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, verbose_name="Lesson")
+    group = models.CharField(max_length=50, verbose_name="Группа")
     order = models.PositiveSmallIntegerField(
         verbose_name="Order",
         help_text="Lesson order for the day (e.g. 1st period, 2nd period, etc.)",
@@ -66,7 +66,7 @@ class ScheduleLesson(models.Model):
         ordering = ["order"]
         verbose_name = "Scheduled Lesson"
         verbose_name_plural = "Scheduled Lessons"
-        unique_together = (("schedule", "order"),)
+        # unique_together = (("schedule", "order"),)
 
 
 class FileTime(models.Model):
@@ -117,25 +117,21 @@ def save_schedule_from_parser(
     for row in parser.days:
         for pair in row:
             dt: date = pair["dt"]
-            lesson_num: int = pair["lesson_num"]
-            subj: str = pair["subj"]
+            group: int = pair["group"]
 
             if dt not in schedule_data:
                 schedule_data[dt] = {}
 
-            if lesson_num in schedule_data[dt]:
-                continue
-
-            schedule_data[dt][lesson_num] = subj
+            schedule_data[dt][group] = pair
 
     for dt, lessons in schedule_data.items():
         schedule = Schedule.objects.create(day=dt)
-        for lesson_num, subj in lessons.items():
+        for group, pair in lessons.items():
             lesson, _ = Lesson.objects.get_or_create(
-                name=subj, defaults={"room": "", "teacher": "", "group": ""}
+                name=pair["subj"], teacher=pair["teacher"], defaults={"room": ""}
             )
             ScheduleLesson.objects.create(
-                schedule=schedule, lesson=lesson, order=lesson_num
+                schedule=schedule, lesson=lesson, order=pair["lesson_num"], group=group
             )
         filetime_instance.schedules.add(schedule)
 

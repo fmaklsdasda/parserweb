@@ -13,6 +13,7 @@ class ScheduleParser:
         self.date_column = 1
         self.first_row = 2
         self.last_date_col = None
+        self.groups_by_col = {}
 
     def get_merged_cell_value(self, cell):
         if isinstance(cell, MergedCell):
@@ -44,13 +45,20 @@ class ScheduleParser:
             if match:
                 parts = re.split(pattern, val)
                 subject = parts[0].strip()
+                teacher = re.sub(r'\s+', ' ', match.group(1))
 
-                return subject
+                return subject, teacher
         return False
 
     def parse_schedule(self):
         max_row = self.ws.max_row
         max_col = self.ws.max_column
+
+        header_row = self.ws[2]
+        for col_idx, cell in enumerate(header_row, start=1):
+            value = self.get_merged_cell_value(cell)
+            if value and isinstance(value, str) and re.search(r"\d", value):
+                self.groups_by_col[col_idx] = value.strip()
 
         iter_rows = self.ws.iter_rows(
             min_row=self.first_row,
@@ -59,14 +67,7 @@ class ScheduleParser:
             max_col=max_col,
         )
 
-        groups_by_col = None
-
         for row in iter_rows:
-            
-            if not groups_by_col:
-                # TODO: groups_by_col = Match groups in row - 1
-                pass
-
             date_col = row[0].value
             lesson_num = row[1].value
 
@@ -78,18 +79,20 @@ class ScheduleParser:
                     self.last_date_col = dt
             else:
                 dt = self.last_date_col
+
             day = []
             if dt:
-                for col in row[2:]:
+                for col_idx, col in enumerate(row[2:], start=3):
                     result = self.parse_subject(col)
                     if result:
-                        subj = result
-                        # TODO: Find group name from table header
+                        subj, teacher = result
+                        group = self.groups_by_col.get(col_idx, "")
                         pair = {
                             "subj": subj,
-                            "group": "",
+                            "group": group,
                             "dt": dt,
                             "lesson_num": lesson_num,
+                            "teacher": teacher,
                         }
                         day.append(pair)
             self.days.append(day)

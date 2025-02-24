@@ -19,9 +19,9 @@ class ScheduleAdmin(admin.ModelAdmin):
 
 # Admin for the Lesson model
 class LessonAdmin(admin.ModelAdmin):
-    list_display = ('name', 'teacher', 'group', 'room')
-    list_filter = ('teacher', 'group')
-    search_fields = ('name', 'teacher', 'group', 'room')
+    list_display = ('name', 'teacher', 'room')
+    list_filter = ('teacher',)
+    search_fields = ('name', 'teacher', 'room')
 
 
 # Admin for the FileTime model, updated to handle multiple schedules
@@ -39,9 +39,9 @@ class FileTimeAdmin(admin.ModelAdmin):
 
 # Admin for the ScheduleLesson model (optional registration)
 class ScheduleLessonAdmin(admin.ModelAdmin):
-    list_display = ('schedule', 'lesson', 'order')
-    list_filter = ('schedule', 'order')
-    search_fields = ('schedule__day', 'lesson__name')
+    list_display = ('schedule', 'lesson', 'group', 'order')
+    list_filter = ('schedule', 'group', 'order')
+    search_fields = ('schedule__day', 'group', 'lesson__name')
 
 
 # Register all models with their corresponding admin classes
