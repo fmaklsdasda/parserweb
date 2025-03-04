@@ -40,15 +40,20 @@ class ScheduleParser:
     def parse_subject(self, cell: Cell):
         val = self.get_merged_cell_value(cell)
         if val:
-            pattern = r"([А-ЯЁа-яё]+ [А-ЯЁ]\.[А-ЯЁ]\.)"
-            match = re.search(pattern, val, re.MULTILINE)
-            if match:
-                parts = re.split(pattern, val)
-                subject = parts[0].strip()
-                teacher = re.sub(r'\s+', ' ', match.group(1))
-
-                return subject, teacher
+            teacher_pattern = r"([А-ЯЁа-яё]+ [А-ЯЁ]\.[А-ЯЁ]\.)"
+            teacher_match = re.search(teacher_pattern, val)
+            if teacher_match:
+                subject = val[:teacher_match.start()].strip()
+                teacher = re.sub(r'\s+', ' ', teacher_match.group(1).strip())
+                
+                room_text = val[teacher_match.end():].strip()
+                room_pattern = r"(?i)(каб(?:инет)?\.?\s*\d+(?:[^\n]*)|цок)"
+                room_match = re.search(room_pattern, room_text)
+                room = room_match.group(0).strip() if room_match else ""
+                
+                return subject, teacher, room
         return False
+
 
     def parse_schedule(self):
         max_row = self.ws.max_row
@@ -85,14 +90,18 @@ class ScheduleParser:
                 for col_idx, col in enumerate(row[2:], start=3):
                     result = self.parse_subject(col)
                     if result:
-                        subj, teacher = result
-                        group = self.groups_by_col.get(col_idx, "")
-                        pair = {
-                            "subj": subj,
-                            "group": group,
-                            "dt": dt,
-                            "lesson_num": lesson_num,
-                            "teacher": teacher,
-                        }
-                        day.append(pair)
+                        subj, teacher, room = result
+                        group_str = self.groups_by_col.get(col_idx, "")
+                        groups = group_str.split("\n")
+                        for group in groups:
+                            pair = {
+                                "subj": subj,
+                                "group": group.strip(),
+                                "dt": dt,
+                                "lesson_num": lesson_num,
+                                "teacher": teacher,
+                                "room": room,
+                            }
+                            day.append(pair)
+
             self.days.append(day)

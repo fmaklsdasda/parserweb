@@ -128,7 +128,7 @@ def save_schedule_from_parser(
         schedule = Schedule.objects.create(day=dt)
         for group, pair in lessons.items():
             lesson, _ = Lesson.objects.get_or_create(
-                name=pair["subj"], teacher=pair["teacher"], defaults={"room": ""}
+                name=pair["subj"], teacher=pair["teacher"], room=pair["room"]
             )
             ScheduleLesson.objects.create(
                 schedule=schedule, lesson=lesson, order=pair["lesson_num"], group=group
